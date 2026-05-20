@@ -18,8 +18,6 @@
 
 A Lovelace **entity-row** that displays multiple entities, attributes, and icons in a single row inside an `entities` card. Modernised on Lit 3 + TypeScript + Rollup with a **HA-native visual editor**, **per-entity custom CSS**, **state-based icons**, and **icon coloring**.
 
-> **Not a standalone card.** This is a *row element* used inside an [entities](https://www.home-assistant.io/lovelace/entities/) card — see [Configuration](#️-configuration).
-
 ---
 
 ## 🛠️ What's different from the original
