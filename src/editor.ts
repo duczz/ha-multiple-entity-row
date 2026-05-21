@@ -53,6 +53,26 @@ const GENERIC_TOKEN_SCHEMA = [
 
 const TEXT_SCHEMA = [{ name: 'text', selector: { text: { multiline: true } } }];
 
+// Per-row schema for the state_icon row UI — a grid with a text input
+// for the state name and an icon-selector for the icon path. Routed via
+// ha-form so it uses HA's standard form-renderer (no ha-textfield
+// availability assumption).
+const STATE_ICON_ROW_SCHEMA = [
+  {
+    type: 'grid',
+    schema: [
+      { name: 'state', selector: { text: {} } },
+      { name: 'icon', selector: { icon: {} } },
+    ],
+  },
+];
+
+const STATE_ICON_ROW_LABEL = (item: { name: string }): string => {
+  if (item.name === 'state') return 'State';
+  if (item.name === 'icon') return 'Icon';
+  return item.name;
+};
+
 /** Object {color: 'red', ...} → YAML-style text "color: red\n..." for the
  * code editor. Returns empty string when there are no styles. */
 const stringifyStyles = (styles: unknown): string => {
@@ -129,6 +149,15 @@ export default class MultipleEntityRowEditor extends LitElement {
 
   @state() private _clipboardEntity?: EntityConfig;
 
+  // Row-based UI state for state_icon (option D). Kept locally so pending
+  // empty rows (state typed but icon not yet picked, or vice versa)
+  // survive config-changed round-trips. Synced from config in setConfig
+  // with a match-skip guard so external setConfig calls don't wipe the
+  // user's in-progress drafts.
+  @state() private _stateIconRowsMain: [string, string][] = [];
+  @state() private _stateIconRowsAdditional: Map<number, [string, string][]> =
+    new Map();
+
   public setConfig(config: MultipleEntityRowConfig): void {
     this._config = config;
     const maxAdditionalTab = config.entities?.length ?? 0;
@@ -136,6 +165,51 @@ export default class MultipleEntityRowEditor extends LitElement {
       this._selectedTab = maxAdditionalTab;
     }
     this._clipboardEntity = this._readClipboard();
+
+    // Sync state_icon row drafts with config. The match-skip preserves any
+    // empty rows the user is mid-typing — without it, our own config-changed
+    // round-trips would wipe the draft on every keystroke.
+    if (!this._stateIconRowsMatch(this._stateIconRowsMain, config.state_icon)) {
+      this._stateIconRowsMain = Object.entries(config.state_icon ?? {});
+    }
+    const next = new Map<number, [string, string][]>();
+    config.entities?.forEach((e, i) => {
+      const target =
+        typeof e === 'object' && e
+          ? ((e as any).state_icon as Record<string, string> | undefined)
+          : undefined;
+      const existing = this._stateIconRowsAdditional.get(i);
+      if (existing && this._stateIconRowsMatch(existing, target)) {
+        next.set(i, existing);
+      } else if (target) {
+        next.set(i, Object.entries(target));
+      }
+    });
+    this._stateIconRowsAdditional = next;
+  }
+
+  /** True when the filtered representation of `rows` (drop empty
+   * key/value pairs) is structurally equal to `target`. Used to skip
+   * the setConfig sync when our local drafts already match the config
+   * we're being handed back. */
+  private _stateIconRowsMatch(
+    rows: [string, string][],
+    target: Record<string, string> | undefined,
+  ): boolean {
+    const filtered: Record<string, string> = {};
+    for (const [k, v] of rows) {
+      const tk = k.trim();
+      const tv = v.trim();
+      if (tk && tv) filtered[tk] = tv;
+    }
+    const tgt = target ?? {};
+    const fk = Object.keys(filtered);
+    const tk = Object.keys(tgt);
+    if (fk.length !== tk.length) return false;
+    for (const k of fk) {
+      if (filtered[k] !== tgt[k]) return false;
+    }
+    return true;
   }
 
   private _readClipboard(): EntityConfig | undefined {
@@ -228,6 +302,35 @@ export default class MultipleEntityRowEditor extends LitElement {
     }
     .secondary-sub-form {
       margin-top: 8px;
+    }
+    .state-icon-rows {
+      margin-top: 4px;
+    }
+    .state-icon-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .state-icon-row .state-icon-form {
+      flex: 1;
+      min-width: 0;
+    }
+    .state-icon-row ha-icon-button {
+      flex: 0 0 auto;
+    }
+    .state-icon-add {
+      margin-top: 4px;
+      padding: 6px 14px;
+      background: transparent;
+      border: 1px dashed var(--divider-color, #e0e0e0);
+      border-radius: 4px;
+      color: var(--primary-color);
+      cursor: pointer;
+      font: inherit;
+    }
+    .state-icon-add:hover {
+      background: var(--secondary-background-color);
     }
     .section-label {
       margin-top: 16px;
@@ -399,10 +502,7 @@ export default class MultipleEntityRowEditor extends LitElement {
         <div class="section-label">Secondary info</div>
         ${this._renderSecondaryInfoBlock()}
         <div class="section-label">State-based icons</div>
-        ${this._renderKeyMapBlock(
-          this._config?.state_icon,
-          (ev) => this._mainKeyMapChanged(ev, 'state_icon'),
-        )}
+        ${this._renderStateIconRows('main')}
         <div class="section-label">Custom CSS</div>
         ${this._renderKeyMapBlock(
           this._config?.styles,
@@ -469,6 +569,99 @@ export default class MultipleEntityRowEditor extends LitElement {
     this._updateConfig({ entities });
   };
 
+  // ── State-icon row-based UI ─────────────────────────────────────────
+
+  private _stateIconRowsFor(scope: 'main' | number): [string, string][] {
+    return scope === 'main'
+      ? this._stateIconRowsMain
+      : (this._stateIconRowsAdditional.get(scope) ?? []);
+  }
+
+  /** Persist updated rows to local state AND propagate the filtered
+   * Object form to config-changed. Empty rows (missing state or icon)
+   * stay in local state for editing but don't reach the YAML config. */
+  private _setStateIconRows(scope: 'main' | number, rows: [string, string][]): void {
+    if (scope === 'main') {
+      this._stateIconRowsMain = rows;
+    } else {
+      const next = new Map(this._stateIconRowsAdditional);
+      next.set(scope, rows);
+      this._stateIconRowsAdditional = next;
+    }
+
+    const filtered: Record<string, string> = {};
+    for (const [k, v] of rows) {
+      const tk = k.trim();
+      const tv = v.trim();
+      if (tk && tv) filtered[tk] = tv;
+    }
+    const value = Object.keys(filtered).length > 0 ? filtered : undefined;
+
+    if (!this._config) return;
+    if (scope === 'main') {
+      const next: any = { ...this._config };
+      if (value) next.state_icon = value;
+      else delete next.state_icon;
+      fireEvent(this, 'config-changed', { config: next });
+    } else {
+      const entities = [...(this._config.entities ?? [])];
+      const raw = entities[scope];
+      const conf: any = typeof raw === 'string' ? { entity: raw } : { ...raw };
+      if (value) conf.state_icon = value;
+      else delete conf.state_icon;
+      entities[scope] = conf;
+      this._updateConfig({ entities });
+    }
+  }
+
+  private _renderStateIconRows(scope: 'main' | number): TemplateResult {
+    const rows = this._stateIconRowsFor(scope);
+
+    return html`
+      <div class="state-icon-rows">
+        ${rows.map(
+          (entry, i) => html`
+            <div class="state-icon-row">
+              <ha-form
+                class="state-icon-form"
+                .hass=${this.hass}
+                .data=${{ state: entry[0], icon: entry[1] }}
+                .schema=${STATE_ICON_ROW_SCHEMA}
+                .computeLabel=${STATE_ICON_ROW_LABEL}
+                @value-changed=${(ev: CustomEvent) => {
+                  const v = ev.detail.value as { state?: string; icon?: string };
+                  const next = rows.map(
+                    (e, j): [string, string] =>
+                      j === i ? [v.state ?? '', v.icon ?? ''] : e,
+                  );
+                  this._setStateIconRows(scope, next);
+                }}
+              ></ha-form>
+              <ha-icon-button
+                .label=${'Remove'}
+                .path=${mdiDelete}
+                @click=${() => {
+                  const next = rows.filter((_, j) => j !== i);
+                  this._setStateIconRows(scope, next);
+                }}
+              ></ha-icon-button>
+            </div>
+          `,
+        )}
+        <button
+          type="button"
+          class="state-icon-add"
+          @click=${() => {
+            const next: [string, string][] = [...rows, ['', '']];
+            this._setStateIconRows(scope, next);
+          }}
+        >
+          + Add state
+        </button>
+      </div>
+    `;
+  }
+
   private _renderAdditionalTab(
     additionalIndex: number,
     _totalTabs: number,
@@ -526,10 +719,7 @@ export default class MultipleEntityRowEditor extends LitElement {
             this._additionalValueChanged(ev, additionalIndex)}
         ></ha-form>
         <div class="section-label">State-based icons</div>
-        ${this._renderKeyMapBlock(
-          (entityConfig as any).state_icon,
-          (ev: CustomEvent) => this._additionalKeyMapChanged(ev, additionalIndex, 'state_icon'),
-        )}
+        ${this._renderStateIconRows(additionalIndex)}
         <div class="section-label">Custom CSS</div>
         ${this._renderKeyMapBlock(
           (entityConfig as any).styles,

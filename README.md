@@ -42,7 +42,7 @@ A `<ha-form>`-based editor that matches HA's own conventions and lives entirely 
 - 🧩 **Polymorphic secondary info** — None / Custom text / HA built-in token (`last-changed`, …) / Entity-based; mode switch preserves context
 - 🎨 **Custom CSS per entity** — `<ha-code-editor mode="yaml">` block in every tab; edits round-trip into the per-entity `styles:` field
 - 🌈 **Icon color per entity** — CSS color value (e.g. `red`, `#ff0000`, `var(--my-color)`) cascades into the state-badge across HA versions
-- 🎯 **State-based icons** — `state_icon: { on: 'mdi:door-open', off: 'mdi:door-closed' }` map, edited as YAML in a small block at the bottom of each tab
+- 🎯 **State-based icons** — `state_icon: { on: 'mdi:door-open', off: 'mdi:door-closed' }` map. Row-based editor with one State field + native HA icon picker per row, plus an "Add state" button
 - ⚙️ **Interactions panel** — tap / hold / double-tap action selectors for the main row, all functional (no longer silent no-ops)
 
 ### Bug fixes (upstream issues closed)
@@ -326,7 +326,7 @@ Each entity (main + additional) supports three ways to control its icon:
         off: mdi:lightbulb-off
 ```
 
-In the visual editor, `icon_color` is a text field directly below the `icon` picker. `state_icon` lives in a small `<ha-code-editor>` block at the bottom of each entity tab, edited as YAML key:value pairs.
+In the visual editor, `icon_color` is a text field directly below the `icon` picker. `state_icon` is a row-based editor: each row has a `State` text field plus an `Icon` picker, with an "Add state" button below — no YAML needed.
 
 > **state_icon vs templating:** This is an explicit state-to-icon **map**, not a Jinja template. For full template expression support (e.g. `{% if states('sensor.foo') > 100 %}`), use card-mod or wait for a future templating phase.
 
