@@ -24,6 +24,8 @@ All notable changes to this project will be documented in this file.
 - **Tab-based layout**: a single `Entities` panel with `<ha-tab-group>`; tab `1` is the main entity, tabs `2+` are the `entities[]` list with add / cut / copy / paste / move / delete buttons
 - **Secondary info polymorphic editor**: switch between None / Custom text / HA built-in token (`last-changed`, …) / Entity-based without losing context
 - **Custom CSS per entity**: `<ha-code-editor mode="yaml">` block at the bottom of every tab; edits round-trip into the per-entity `styles:` field
+- **State-based icons per entity**: row-based editor with a `State` text field + native HA icon picker per row, plus an "Add state" button; round-trips into the per-entity `state_icon:` map
+- **Icon color per entity**: text field for any CSS color value; cascades into the state-badge via CSS-variable
 - **Interactions panel**: tap / hold / double-tap action selectors for the main row
 - **Cross-row clipboard** for entity sub-configs (sessionStorage-scoped to the browser tab)
 - "Copy Main as template" — duplicates Main's per-entity-relevant fields as a clipboard entry, useful to seed similar additional entities
