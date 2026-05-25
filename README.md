@@ -60,6 +60,7 @@ A `<ha-form>`-based editor that matches HA's own conventions and lives entirely 
 - 🧹 **Pointer timer cleanup on disconnect** — `disconnectedCallback` clears in-flight hold / double-tap timers
 - 📥 **Empty `{}` placeholder safe** — `checkEntity` permits empty objects (kept by the editor between "+" and first edit); runtime silently skips rendering them
 - ⚖️ **Toggle vertically centered** — `.entity ha-entity-toggle { display: inline-block }` so `text-align: center` actually centers the switch under its label
+- ⚖️ **Equal entity spacing** *(5.2.1)* — entities in a row now receive equal width (`flex: 1 1 0`) so toggle buttons align consistently regardless of label length
 
 ### New format modes
 - 📊 **`percent`** — value × 100 with `%` appended ([#323](https://github.com/benct/lovelace-multiple-entity-row/issues/323))

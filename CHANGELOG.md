@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 5.2.1 — 2026-05-25
+
+### Fixed
+- **Uneven entity spacing when label texts differ in length** — added `flex: 1 1 0` to `.entities-row .entity` so all entities receive equal width regardless of label length; toggle buttons now align consistently across the row
+
 ## 5.2.0 — 2026-05-20
 
 > **First modernised release.** Stack modernisation + visual editor + upstream bug-sweep + per-entity icon styling (`icon_color`, `state_icon`). Versions `5.0.0` and `5.1.0` were intentionally skipped — everything ships together. **No schema changes** — all existing 4.x YAML configs continue to work unchanged.
