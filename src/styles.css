@@ -20,7 +20,6 @@
 }
 .entities-row .entity {
   margin-right: 16px;
-  flex: 1 1 0;
 }
 .entities-row .entity:last-of-type {
   margin-right: 0;
