@@ -7,7 +7,6 @@
 [![HACS][hacs-badge]][hacs-url]
 [![Home Assistant][ha-badge]][ha-url]
 [![Version][version-badge]][release-url]
-[![Downloads][downloads-badge]][release-url]
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=duczz&repository=ha-multiple-entity-row&category=lovelace)
 
@@ -522,6 +521,5 @@ Originally created by [@benct](https://github.com/benct) — see [benct/lovelace
 [ha-badge]: https://img.shields.io/badge/Home%20Assistant-2024.4%2B-41BDF5.svg?style=for-the-badge&logo=homeassistant&logoColor=white
 [ha-url]: https://www.home-assistant.io
 [version-badge]: https://img.shields.io/github/v/release/duczz/ha-multiple-entity-row.svg?style=for-the-badge&logo=github&logoColor=white&color=22c55e
-[downloads-badge]: https://img.shields.io/github/downloads/duczz/ha-multiple-entity-row/total.svg?style=for-the-badge&logo=github&logoColor=white&color=blueviolet
 [release-url]: https://github.com/duczz/ha-multiple-entity-row
 [license-badge]: https://img.shields.io/badge/license-MIT-94a3b8.svg?style=for-the-badge
