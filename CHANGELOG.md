@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 5.2.1
+
+**Fixed:**
+- **`unit: false` ignored without format string** — `format.ts` now correctly strips the unit even if no custom format is applied ([#1](https://github.com/duczz/ha-multiple-entity-row/issues/1))
+
 ## 5.2.0 — 2026-05-20
 
 > **First modernised release.** Stack modernisation + visual editor + upstream bug-sweep + per-entity icon styling (`icon_color`, `state_icon`). Versions `5.0.0` and `5.1.0` were intentionally skipped — everything ships together. **No schema changes** — all existing 4.x YAML configs continue to work unchanged.
