@@ -115,7 +115,7 @@ export const entityStateDisplay = (
   }
 
   const stateObjForFormat =
-    unit !== undefined && unit !== stateObj.attributes.unit_of_measurement
+    unit !== stateObj.attributes.unit_of_measurement
       ? {
           ...stateObj,
           attributes: { ...stateObj.attributes, unit_of_measurement: unit },
