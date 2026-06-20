@@ -200,42 +200,20 @@ export const runAction = (
   hass: HASS,
   entityId: string,
   actionConfig?: ActionConfig,
+  actionType: 'tap' | 'hold' | 'double_tap' = 'tap',
 ): void => {
   const action = actionConfig?.action ?? 'none';
+  if (action === 'none') return;
 
-  switch (action) {
-    case 'none':
-      return;
-    case 'more-info':
-      // Upstream #188: honor `tap_action.entity` as a more-info target
-      // override so `tap_action: { action: more-info, entity: light.x }`
-      // opens light.x's dialog instead of the host row's entity.
-      fireEvent(node, 'hass-more-info', {
-        entityId: (actionConfig as any)?.entity || entityId,
-      });
-      return;
-    case 'toggle':
-      hass.callService('homeassistant', 'toggle', { entity_id: entityId });
-      return;
-    case 'call-service': {
-      const svc = actionConfig?.service;
-      if (!svc) return;
-      const [domain, service] = svc.split('.');
-      hass.callService(domain, service, actionConfig?.service_data ?? actionConfig?.data ?? {});
-      return;
-    }
-    case 'navigate': {
-      const path = actionConfig?.navigation_path;
-      if (path) {
-        history.pushState(null, '', path);
-        fireEvent(window, 'location-changed', { replace: false });
-      }
-      return;
-    }
-    case 'url': {
-      const url = actionConfig?.url_path;
-      if (url) window.open(url);
-      return;
-    }
-  }
+  // Upstream #188: honor `tap_action.entity` as a more-info target override
+  // so `tap_action: { action: more-info, entity: light.x }` opens light.x's dialog.
+  const targetEntityId = actionConfig?.entity || entityId;
+
+  fireEvent(node, 'hass-action', {
+    config: {
+      entity: targetEntityId,
+      [`${actionType}_action`]: actionConfig,
+    },
+    action: actionType,
+  });
 };

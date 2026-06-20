@@ -39,6 +39,7 @@ export type ActionType =
 
 export interface ActionConfig {
   action: ActionType;
+  entity?: string;
   service?: string;
   service_data?: LooseObject;
   data?: LooseObject;

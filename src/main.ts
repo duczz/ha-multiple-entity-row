@@ -394,7 +394,7 @@ export default class MultipleEntityRow extends LitElement {
           ? ctx.hold_action
           : ctx.double_tap_action;
 
-    if (cfg) runAction(this, this._hass, ctx.entityId, cfg);
+    if (cfg) runAction(this, this._hass, ctx.entityId, cfg, kind);
     this._activeAction = undefined;
   }
 }
