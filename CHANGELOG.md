@@ -3,9 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## 5.2.2
 
-**Fixed:**
+### 🐛 Bug Fixes
 - **Actions on security domains (lock, cover) bypassed HA core logic** — replaced manual action handling with native `hass-action` event bubbling to support standard UI confirmations and security domain restrictions ([#2](https://github.com/duczz/ha-multiple-entity-row/issues/2))
 - **`hold_action` / `double_tap_action` overwritten by undefined defaults** — refined the action event configuration payload to prevent undefined fields from wiping inherited Lovelace defaults
+
+### 🔧 Code quality
 - **Code smell in action types** — added explicit `entity?: string` property to `ActionConfig` to avoid `any` casts
 
 ## 5.2.1
