@@ -50,10 +50,32 @@ export const entityStateDisplay = (
         return `${String(rawValue).replace(/\b\w/g, (c) => c.toUpperCase())}${unit ? ` ${unit}` : ''}`;
     }
 
+    // Upstream #225: a missing attribute (e.g. brightness on a light that's
+    // off) is undefined, not a number — treat it as 0 rather than letting it
+    // flow through to the final template literal as the literal string
+    // "undefined".
+    if (rawValue === undefined || rawValue === null) {
+      rawValue = 0;
+    }
+
     const numeric = parseFloat(rawValue);
     const isNumber = !isNaN(numeric) && isFinite(numeric);
 
     if (isNumber) {
+      // Upstream #304: invert/position do arithmetic on the value before
+      // formatting, which loses formatNumber's "preserve the source
+      // string's decimal digits" handling. Compute the source value's
+      // original decimal digit count so the formatted result keeps the
+      // same precision as an unformatted display of the same value.
+      const sourceDigits =
+        typeof rawValue === 'string' && rawValue.includes('.')
+          ? rawValue.split('.')[1].length
+          : undefined;
+      const sourceDigitsOptions =
+        sourceDigits !== undefined
+          ? { minimumFractionDigits: sourceDigits, maximumFractionDigits: sourceDigits }
+          : undefined;
+
       switch (config.format) {
         case 'brightness':
           rawValue = Math.round((numeric / 255) * 100);
@@ -76,14 +98,11 @@ export const entityStateDisplay = (
           rawValue = secondsToDuration(numeric * 3600);
           unit = undefined;
           break;
-        case 'kilo':
-          rawValue = formatNumber(numeric / 1000, hass, { maximumFractionDigits: 2 });
-          break;
         case 'invert':
-          rawValue = formatNumber(-numeric, hass);
+          rawValue = formatNumber(-numeric, hass, sourceDigitsOptions);
           break;
         case 'position':
-          rawValue = formatNumber(100 - numeric, hass);
+          rawValue = formatNumber(100 - numeric, hass, sourceDigitsOptions);
           break;
         case 'celsius_to_fahrenheit':
           rawValue = formatNumber(numeric * 1.8 + 32, hass, { maximumFractionDigits: 0 });
@@ -98,6 +117,27 @@ export const entityStateDisplay = (
               minimumFractionDigits: precision,
               maximumFractionDigits: precision,
             });
+          } else if (
+            config.format.startsWith('kilo') ||
+            config.format.startsWith('mega') ||
+            config.format.startsWith('milli')
+          ) {
+            // kilo/mega/milli on their own default to a 2-decimal cap; a
+            // trailing digit (kilo3, mega1, milli0, ...) requests an exact
+            // precision, same pattern as precision<0-9>.
+            const [divisor, suffix] = config.format.startsWith('kilo')
+              ? [1000, config.format.slice(4)]
+              : config.format.startsWith('mega')
+                ? [1000000, config.format.slice(4)]
+                : [1 / 1000, config.format.slice(5)];
+            const options =
+              suffix === ''
+                ? { maximumFractionDigits: 2 }
+                : (() => {
+                    const precision = parseInt(suffix, 10);
+                    return { minimumFractionDigits: precision, maximumFractionDigits: precision };
+                  })();
+            rawValue = formatNumber(numeric / divisor, hass, options);
           }
       }
     }
@@ -108,6 +148,12 @@ export const entityStateDisplay = (
     if (hass.formatEntityAttributeValue) {
       const formatted = hass.formatEntityAttributeValue(stateObj, config.attribute, rawValue);
       return `${formatted}${unit ? ` ${unit}` : ''}`;
+    }
+    // Upstream #225/#352: a missing attribute is undefined, not a number or
+    // a real string — render an empty value rather than the literal string
+    // "undefined" (only reachable on HA versions without formatEntityAttributeValue).
+    if (rawValue === undefined || rawValue === null) {
+      return `${unit ? ` ${unit}` : ''}`;
     }
     const numeric = parseFloat(rawValue);
     const formatted = isNaN(numeric) ? String(rawValue) : formatNumber(numeric, hass);

@@ -268,11 +268,28 @@ export default class MultipleEntityRow extends LitElement {
 
     if (config.attribute && TIMESTAMP_ATTRIBUTES.includes(config.attribute)) {
       const dt = (stateObj as any)[config.attribute.replace('-', '_')];
-      return html`<ha-relative-time
+      // Upstream #305: `format:` (e.g. datetime/date/time) was silently
+      // ignored for the special `last-changed`/`last-updated` attributes —
+      // this branch always rendered the default relative-time widget. Only
+      // fall back to the relative-time widget when no timestamp format was
+      // explicitly requested.
+      if (!config.format || !TIMESTAMP_FORMATS.includes(config.format)) {
+        return html`<ha-relative-time
+          .hass=${this._hass}
+          .datetime=${dt}
+          capitalize
+        ></ha-relative-time>`;
+      }
+      const timestamp = new Date(dt);
+      if (!(timestamp instanceof Date) || isNaN(timestamp.getTime())) {
+        return String(dt);
+      }
+      return html`<hui-timestamp-display
         .hass=${this._hass}
-        .datetime=${dt}
+        .ts=${timestamp}
+        .format=${config.format}
         capitalize
-      ></ha-relative-time>`;
+      ></hui-timestamp-display>`;
     }
 
     if (config.format && TIMESTAMP_FORMATS.includes(config.format)) {

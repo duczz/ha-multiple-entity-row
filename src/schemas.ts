@@ -12,6 +12,10 @@ const FORMAT_OPTIONS = [
   // Runtime supports precision4..precision9 too; YAML-only since dropdown
   // would otherwise be cluttered with rarely-used precisions.
   { value: 'kilo', label: 'Kilo (value / 1000)' },
+  { value: 'mega', label: 'Mega (value / 1,000,000)' },
+  { value: 'milli', label: 'Milli (value × 1000)' },
+  // Runtime supports kilo0..kilo9 / mega0..mega9 / milli0..milli9 too
+  // (explicit precision digit); YAML-only for the same reason as above.
   { value: 'invert', label: 'Invert (value × -1)' },
   { value: 'position', label: 'Position (100 - value)' },
   { value: 'celsius_to_fahrenheit', label: '°C → °F' },

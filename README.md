@@ -18,67 +18,17 @@ A Lovelace **entity-row** that displays multiple entities, attributes, and icons
 
 ---
 
-## 🛠️ What's different from the original
+<a id="about-this-fork"></a>
+## 🛠️ About this fork
 
-This is a complete refresh of `benct/lovelace-multiple-entity-row` 4.5.1 on a current Home Assistant frontend stack (HA 2024.4+). All existing 4.x YAML configs continue to work unchanged.
-
-### Modernisation
-- ⚡ **Lit 3 + TypeScript 5.7 + Rollup 4** — full migration from Lit 2.7 / JavaScript + Babel / Webpack 5
-- 📦 **No `custom-card-helpers`** — local types and own pointer-event handlers replace the deprecated wrapper
-- 🌍 **HA-native formatters** — `src/lib/*` (HA-internal copies from 2020) replaced with `hass.formatEntityState`, `hass.formatEntityAttributeValue`, `hass.localize`, and `Intl.NumberFormat` — locale-aware out of the box
-- 📁 **`dist/` build output** — moved from repo root to `dist/multiple-entity-row.js` (modern HACS layout)
-- 🛡️ **Double-registration guard** — loading the bundle twice (HACS + manual resource) no longer throws
-- 🆔 **`customCards` registration entry** — improves discovery in third-party tools
-- 🕒 **BUILD_TIME injected** into the editor footer for HACS cache diagnostics
-
-### Visual editor (new)
-A `<ha-form>`-based editor that matches HA's own conventions and lives entirely inside the dashboard editor:
-- 🗂️ **Native `<ha-tab-group>` tabs** — tab `1` is the main entity, tabs `2+` are the `entities[]` list (falls back to styled buttons on older HA)
-- 🎛️ **Per-tab action row** — RTL-aware move-before / move-after, copy, cut, paste, delete (icons + `<ha-icon-button-arrow-prev/next>` from HA's own primitives)
-- ➕ **Add empty entity** — `+` button appends a placeholder tab; empty `{}` slots are tolerated by the runtime until the user fills them in
-- 📋 **Cross-row clipboard** — copy / cut / paste entity sub-configs between rows via sessionStorage (own key `multipleEntityRowClipboard`, doesn't pollute HA's card-picker)
-- 📑 **"Copy main as template"** — duplicates main's per-entity-relevant fields as a clipboard entry, useful to seed similar additional entities
-- 🧩 **Polymorphic secondary info** — None / Custom text / HA built-in token (`last-changed`, …) / Entity-based; mode switch preserves context
-- 🎨 **Custom CSS per entity** — `<ha-code-editor mode="yaml">` block in every tab; edits round-trip into the per-entity `styles:` field
-- 🌈 **Icon color per entity** — CSS color value (e.g. `red`, `#ff0000`, `var(--my-color)`) cascades into the state-badge across HA versions
-- 🎯 **State-based icons per entity** — row-based editor with a `State` text field + native HA icon picker per row, plus an "Add state" button; round-trips into the per-entity `state_icon:` map
-- ⚙️ **Interactions panel** — tap / hold / double-tap action selectors for the main row, all functional (no longer silent no-ops)
-
-### Bug fixes (upstream issues closed)
-- 🔁 **`name` override not applying on first paint in HA 2026.2+** — `shouldUpdate` now also reacts to `hass.formatEntityName` reference swaps ([upstream PR #373](https://github.com/benct/lovelace-multiple-entity-row/pull/373), [#370](https://github.com/benct/lovelace-multiple-entity-row/issues/370), [#371](https://github.com/benct/lovelace-multiple-entity-row/issues/371))
-- ✋ **`hold_action` / `double_tap_action` silently dead** — accepted in YAML but the 4.x runtime called `handleClick(..., false, false)`. Now wired via local pointer-event handlers ([#338](https://github.com/benct/lovelace-multiple-entity-row/issues/338), [#309](https://github.com/benct/lovelace-multiple-entity-row/issues/309), [#202](https://github.com/benct/lovelace-multiple-entity-row/issues/202), [#334](https://github.com/benct/lovelace-multiple-entity-row/issues/334))
-- 🙈 **`hide_if` / `hide_unavailable` ignored on main row** — top-level hide rules now apply to the main state slot ([#227](https://github.com/benct/lovelace-multiple-entity-row/issues/227))
-- 🎯 **`tap_action: { action: more-info, entity: X }` ignored the entity override** — main row now opens the named entity ([#188](https://github.com/benct/lovelace-multiple-entity-row/issues/188))
-- 🔗 **`hide_if.entity` named-entity comparison** — `hide_if` may reference another entity / attribute to evaluate against ([upstream PR #280](https://github.com/benct/lovelace-multiple-entity-row/pull/280))
-- 💯 **Number formatting respects locale / decimals** — `hass.formatEntityState` + `Intl.NumberFormat` ([#220](https://github.com/benct/lovelace-multiple-entity-row/issues/220), [#286](https://github.com/benct/lovelace-multiple-entity-row/issues/286), [#363](https://github.com/benct/lovelace-multiple-entity-row/issues/363))
-- ✨ **`brightness` undefined when entity is unavailable** — guarded by `isUnavailable` ([#225](https://github.com/benct/lovelace-multiple-entity-row/issues/225))
-- ⏱️ **`format: duration` returned `null` for value `0`** — `secondsToDuration` now returns `"0"` ([#240](https://github.com/benct/lovelace-multiple-entity-row/issues/240))
-
-### Deep-dive fixes (own review)
-- 🔁 **`hide_if.entity` references re-render-tracked** — `getEntityIds` picks up entity refs out of object-form `hide_if` so the row re-renders when the referenced entity changes
-- 🧹 **Pointer timer cleanup on disconnect** — `disconnectedCallback` clears in-flight hold / double-tap timers
-- 📥 **Empty `{}` placeholder safe** — `checkEntity` permits empty objects (kept by the editor between "+" and first edit); runtime silently skips rendering them
-- ⚖️ **Toggle vertically centered** — `.entity ha-entity-toggle { display: inline-block }` so `text-align: center` actually centers the switch under its label
-
-### New format modes
-- 📊 **`percent`** — value × 100 with `%` appended ([#323](https://github.com/benct/lovelace-multiple-entity-row/issues/323))
-- 🔠 **`upper` / `lower` / `capitalize` / `title`** — string transforms ([#367](https://github.com/benct/lovelace-multiple-entity-row/issues/367))
-
-### Bug fixes carried over
-- 🔁 **Element double-registration guard** — Card + Editor both protected
-- 🪜 **`customCards.type` without `custom:` prefix** — HA's picker treats it as the element tag; the prefix would fail silently
-
-> ⚠️ **Behaviour-change heads-up:** `hold_action` / `double_tap_action` on the main row, and `hide_if` / `hide_unavailable` at top level, **all start firing if they were set in your YAML**. They were silently no-ops in 4.x. If you had any of these in your config "just in case", review them before upgrading.
-
-> **Versioning note:** The fork skipped `5.0.0` and `5.1.0` — modernisation, editor, and the upstream / deep-dive sweeps all ship together in `5.2.0` as the first modernised release.
-
-For the full list of changes see [CHANGELOG.md](CHANGELOG.md).
+This project is a modernised complete rewrite of the 2020-era `benct/lovelace-multiple-entity-row`, rebuilt to support the latest Home Assistant frontend stack (HA 2024.4+). All existing 4.x YAML configs continue to work unchanged.
+For all new features, bug fixes, and improvements, please check the [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
 ## Table of Contents
 
-- [What's different from the original](#️-whats-different-from-the-original)
+- [About this fork](#about-this-fork)
 - [Requirements](#-requirements)
 - [Installation](#-installation)
 - [Configuration](#️-configuration)
@@ -253,7 +203,9 @@ The `format` option supports:
 | `duration-m`            | `number`    | Convert milliseconds to duration                                 |
 | `duration-h`            | `number`    | Convert hours to duration                                        |
 | `invert`                | `number`    | Convert number from positive to negative or vice versa           |
-| `kilo`                  | `number`    | Divide by 1000 (`1500 W` → `1.5 kW`)                             |
+| `kilo` / `kilo0`–`kilo9`   | `number`  | Divide by 1,000 (`1500` → `1.5`) — new in 5.2.3: optional precision digit |
+| `mega` / `mega0`–`mega9`   | `number`  | Divide by 1,000,000 (`2500000` → `2.5`) — new in 5.2.3            |
+| `milli` / `milli0`–`milli9` | `number` | Multiply by 1,000 (`0.2` → `200`) — new in 5.2.3                  |
 | `position`              | `number`    | Reverse a position percentage (`70%` open → `30%` closed)        |
 | `precision0`–`precision9` | `number`  | Decimal precision (`precision3` → `18.123`)                      |
 | `celsius_to_fahrenheit` | `number`    | Convert °C to °F                                                 |
@@ -262,6 +214,8 @@ The `format` option supports:
 | `lower`                 | `string`    | Convert text to lowercase — new in 5.2.0                         |
 | `capitalize`            | `string`    | Capitalize the first character — new in 5.2.0                    |
 | `title`                 | `string`    | Capitalize Each Word ("Title Case") — new in 5.2.0               |
+
+`kilo`/`mega`/`milli`/`invert`/`position` only scale or transform the number — they do **not** change the displayed unit. If you want the unit label to match (e.g. `W` → `kW`), set `unit:` explicitly alongside the format.
 
 ---
 

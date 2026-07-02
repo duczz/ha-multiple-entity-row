@@ -1,5 +1,11 @@
 node_modules/
 
+# Build output — no longer committed. HACS installs from GitHub Releases,
+# and release.yml builds + attaches dist/multiple-entity-row.js as a release
+# asset on every published release. Run `npm run build` locally only to
+# verify/test; the local dist/ output does not need to be committed.
+dist/
+
 # Local-only AI assistant notes (lives in PersonalOS brain too — regenerable)
 CLAUDE.md
 .claude/

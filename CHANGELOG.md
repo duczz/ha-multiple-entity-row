@@ -1,6 +1,17 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 5.2.3
+
+### 🐛 Bug Fixes
+- **`format:` on a missing attribute rendered the literal text "undefined"** — e.g. `attribute: brightness, format: brightness` on a light that's off now correctly shows `0 %` instead of `undefined` (upstream benct/lovelace-multiple-entity-row#225)
+- **`invert` / `position` formats lost decimal precision** — arithmetic (`-value`, `100 - value`) coerced the source string to a number before formatting, capping the result at 3 decimals regardless of the source's actual precision (upstream #304)
+- **Attribute fallback without `format:` could also render "undefined"** — only reachable on HA versions without `hass.formatEntityAttributeValue`; now renders empty instead
+- **`format:` was silently ignored on the special `last-changed` / `last-updated` attributes** — e.g. `attribute: last-changed, format: datetime` always rendered the default relative-time widget instead of the requested format (upstream #305)
+
+### 🔧 Repo maintenance
+- **`dist/multiple-entity-row.js` no longer committed to the repo** — HACS installs from GitHub Releases, and `release.yml` already builds and attaches it as a release asset on every published release. Committing it alongside every source change was redundant.
+
 ## 5.2.2
 
 ### 🐛 Bug Fixes
