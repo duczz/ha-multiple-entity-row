@@ -21,7 +21,7 @@ A Lovelace **entity-row** that displays multiple entities, attributes, and icons
 <a id="about-this-fork"></a>
 ## 🛠️ About this fork
 
-This project is a modernised complete rewrite of the 2020-era `benct/lovelace-multiple-entity-row`, rebuilt to support the latest Home Assistant frontend stack (HA 2024.4+). All existing 4.x YAML configs continue to work unchanged.
+This project is a modernised complete rewrite of the 2020-era `benct/lovelace-multiple-entity-row`, rebuilt to support the latest Home Assistant frontend stack (HA 2024.4+). All existing 4.x YAML configs continue to work unchanged, and a **built-in visual editor** (accessible from the HA card picker) means most settings no longer require touching YAML at all.
 For all new features, bug fixes, and improvements, please check the [CHANGELOG.md](CHANGELOG.md).
 
 ---
