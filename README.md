@@ -137,8 +137,8 @@ Each item in `entities[]` can be either an entity id string or an entity object.
 | `styles`           | `object`        | —                           | Inline CSS styles applied to this entity                           |
 | `format`           | `string`        | _[Formatting](#formatting)_ | Format entity value                                                |
 | `tap_action`       | `object`        | _[Actions](#actions)_       | Custom entity tap action                                           |
-
-> `hold_action` and `double_tap_action` are **not** supported on additional entities (only on the main row).
+| `hold_action`      | `object`        | _[Actions](#actions)_       | Custom entity hold action — editor support new in 5.2.4            |
+| `double_tap_action`| `object`        | _[Actions](#actions)_       | Custom entity double-tap action — editor support new in 5.2.4      |
 
 ### Special attributes
 
