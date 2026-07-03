@@ -53,11 +53,13 @@ export default class MultipleEntityRow extends LitElement {
 
   private _entityIds: string[] = [];
 
-  private _activeAction?: ActionBundle;
   private _holdTimer?: number;
   private _holdFired = false;
   private _clickTimer?: number;
   private _clickCount = 0;
+  // Entity the pending click counter belongs to — rapid taps across two
+  // different entities must not combine into a double-tap on the second.
+  private _clickEntityId?: string;
 
   setConfig(config: MultipleEntityRowConfig): void {
     if (!config || !config.entity) {
@@ -75,6 +77,14 @@ export default class MultipleEntityRow extends LitElement {
       ...config,
       name: config.name === false ? ' ' : config.name,
     } as MultipleEntityRowConfig;
+
+    // Recompute resolved states right away when a config arrives while a
+    // hass object is already present (e.g. a live-preview reconfiguring an
+    // existing element) — otherwise the new config would render against the
+    // previous config's resolved entities until the next hass tick.
+    if (this._hass) {
+      this.hass = this._hass;
+    }
   }
 
   set hass(hass: HASS) {
@@ -119,7 +129,7 @@ export default class MultipleEntityRow extends LitElement {
     }
     this._holdFired = false;
     this._clickCount = 0;
-    this._activeAction = undefined;
+    this._clickEntityId = undefined;
   }
 
   // PR #373: hass.formatEntityName is initially a stub that ignores the
@@ -268,6 +278,9 @@ export default class MultipleEntityRow extends LitElement {
 
     if (config.attribute && TIMESTAMP_ATTRIBUTES.includes(config.attribute)) {
       const dt = (stateObj as any)[config.attribute.replace('-', '_')];
+      // A missing timestamp must render empty, not the literal
+      // "undefined"/"null" (same class of bug as upstream #225).
+      if (dt === undefined || dt === null) return '';
       // Upstream #305: `format:` (e.g. datetime/date/time) was silently
       // ignored for the special `last-changed`/`last-updated` attributes —
       // this branch always rendered the default relative-time widget. Only
@@ -296,6 +309,9 @@ export default class MultipleEntityRow extends LitElement {
       const value = config.attribute
         ? (stateObj.attributes[config.attribute] ?? (stateObj as any)[config.attribute])
         : stateObj.state;
+      // e.g. `last_triggered` of an automation that never ran is null —
+      // render empty instead of "undefined"/"null" (upstream #225 class).
+      if (value === undefined || value === null) return '';
       const timestamp = new Date(value);
       if (!(timestamp instanceof Date) || isNaN(timestamp.getTime())) {
         return String(value);
@@ -331,25 +347,25 @@ export default class MultipleEntityRow extends LitElement {
   }
 
   private _renderWarning(): TemplateResult {
-    return html`<hui-warning>
-      ${this._hass!.localize(
-        'ui.panel.lovelace.warning.entity_not_found',
-        'entity',
-        this._config!.entity,
-      )}
-    </hui-warning>`;
+    // HA has renamed/reshaped its entity-not-found translation key over the
+    // years (`ui.panel.lovelace.warning.entity_not_found` with vararg
+    // placeholders → `ui.card.common.entity_not_found` without) — a missing
+    // key makes localize return '' and the warning render blank. Build the
+    // message ourselves with an English fallback.
+    const label =
+      this._hass!.localize('ui.card.common.entity_not_found') || 'Entity not found';
+    return html`<hui-warning>${label}: ${this._config!.entity}</hui-warning>`;
   }
 
   private _onPointerDown = (actions: ActionBundle) => (e: PointerEvent) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
-    this._activeAction = actions;
     this._holdFired = false;
     if (this._holdTimer) clearTimeout(this._holdTimer);
     if (actions.hold_action) {
       this._holdTimer = window.setTimeout(() => {
         this._holdFired = true;
         this._holdTimer = undefined;
-        this._runActiveAction('hold');
+        this._runAction(actions, 'hold');
       }, HOLD_MS);
     }
   };
@@ -367,22 +383,28 @@ export default class MultipleEntityRow extends LitElement {
       this._holdTimer = undefined;
     }
     this._holdFired = false;
-    this._activeAction = undefined;
   };
 
   private _onClick = (actions: ActionBundle) => (e: MouseEvent) => {
     e.stopPropagation();
     if (this._holdFired) {
       this._holdFired = false;
-      this._activeAction = undefined;
       return;
     }
-    this._activeAction = actions;
 
     if (!actions.double_tap_action) {
-      this._runActiveAction('tap');
+      this._runAction(actions, 'tap');
       return;
     }
+
+    // A pending click on a DIFFERENT entity must not count toward this
+    // entity's double-tap — cancel it instead of combining the two.
+    if (this._clickCount > 0 && this._clickEntityId !== actions.entityId) {
+      if (this._clickTimer) clearTimeout(this._clickTimer);
+      this._clickTimer = undefined;
+      this._clickCount = 0;
+    }
+    this._clickEntityId = actions.entityId;
 
     this._clickCount += 1;
     if (this._clickCount === 1) {
@@ -390,19 +412,18 @@ export default class MultipleEntityRow extends LitElement {
       this._clickTimer = window.setTimeout(() => {
         this._clickCount = 0;
         this._clickTimer = undefined;
-        this._runActiveAction('tap');
+        this._runAction(actions, 'tap');
       }, DBL_MS);
     } else {
       if (this._clickTimer) clearTimeout(this._clickTimer);
       this._clickTimer = undefined;
       this._clickCount = 0;
-      this._runActiveAction('double_tap');
+      this._runAction(actions, 'double_tap');
     }
   };
 
-  private _runActiveAction(kind: 'tap' | 'hold' | 'double_tap'): void {
-    const ctx = this._activeAction;
-    if (!ctx || !this._hass) return;
+  private _runAction(ctx: ActionBundle, kind: 'tap' | 'hold' | 'double_tap'): void {
+    if (!this._hass) return;
 
     const cfg =
       kind === 'tap'
@@ -412,6 +433,5 @@ export default class MultipleEntityRow extends LitElement {
           : ctx.double_tap_action;
 
     if (cfg) runAction(this, this._hass, ctx.entityId, cfg, kind);
-    this._activeAction = undefined;
   }
 }

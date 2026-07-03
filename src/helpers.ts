@@ -182,12 +182,17 @@ export const getEntityIds = (config: MultipleEntityRowConfig): string[] => {
 };
 
 export const secondsToDuration = (d: number): string => {
-  const h = Math.floor(d / 3600);
-  const m = Math.floor((d % 3600) / 60);
-  const s = Math.floor((d % 3600) % 60);
-  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  if (m > 0) return `${m}:${s.toString().padStart(2, '0')}`;
-  return `${s}`;
+  // Negative durations format like positives with a leading sign — plain
+  // component math would degrade into per-component negatives ("-30").
+  const abs = Math.abs(d);
+  const h = Math.floor(abs / 3600);
+  const m = Math.floor((abs % 3600) / 60);
+  const s = Math.floor((abs % 3600) % 60);
+  let out: string;
+  if (h > 0) out = `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  else if (m > 0) out = `${m}:${s.toString().padStart(2, '0')}`;
+  else out = `${s}`;
+  return d < 0 ? `-${out}` : out;
 };
 
 /**

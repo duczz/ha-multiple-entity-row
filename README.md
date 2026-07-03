@@ -171,11 +171,11 @@ Each item in `entities[]` can be either an entity id string or an entity object.
 
 ## Actions
 
-This card supports all standard HA actions on the main row. See [Lovelace Actions](https://www.home-assistant.io/lovelace/actions/) for the full reference.
+This card supports all standard HA actions (`tap_action`, `hold_action`, `double_tap_action`) on the main row **and on every additional entity**. See [Lovelace Actions](https://www.home-assistant.io/lovelace/actions/) for the full reference.
 
 | Option            | Type           | Default      | Description                                                                                |
 | ----------------- | -------------- | ------------ | ------------------------------------------------------------------------------------------ |
-| `action`          | `string`       | **required** | `more-info`, `toggle`, `call-service`, `url`, `navigate`, `fire-dom-event`, `none`         |
+| `action`          | `string`       | **required** | `more-info`, `toggle`, `perform-action` (formerly `call-service`), `url`, `navigate`, `assist`, `fire-dom-event`, `none` |
 | `entity`          | `string`       | —            | Override entity id when `action` is `more-info`                                            |
 | `service`         | `string`       | —            | Service to call when `action` is `call-service`                                            |
 | `service_data`    | `object`       | —            | Optional data when `action` is `call-service`                                              |

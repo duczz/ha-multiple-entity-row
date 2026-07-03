@@ -6,6 +6,11 @@ node_modules/
 # verify/test; the local dist/ output does not need to be committed.
 dist/
 
-# Local-only AI assistant notes (lives in PersonalOS brain too — regenerable)
+# Local-only - PersonalOS
 CLAUDE.md
+CLAUDE.local.md
 .claude/
+
+# Environment / secrets
+.env
+.env.*

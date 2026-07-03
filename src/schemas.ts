@@ -104,7 +104,12 @@ export const ADDITIONAL_TAB_SCHEMA = [
     name: 'format',
     selector: { select: { mode: 'dropdown', options: FORMAT_OPTIONS } },
   },
+  // The runtime supports all three actions per additional entity. This
+  // schema is also reused for the secondary-info entity form, where hold /
+  // double-tap are inert (secondary info has no pointer handlers) — harmless.
   { name: 'tap_action', selector: { ui_action: { default_action: 'more-info' } } },
+  { name: 'hold_action', selector: { ui_action: { default_action: 'none' } } },
+  { name: 'double_tap_action', selector: { ui_action: { default_action: 'none' } } },
 ];
 
 // Interactions for the main row (top-level config keys).

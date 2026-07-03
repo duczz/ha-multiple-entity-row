@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
-import { state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import {
   mdiContentCopy,
@@ -106,6 +106,16 @@ const parseStylesText = (text: string): Record<string, string> => {
   return result;
 };
 
+/** `unit: false` (hide the unit) is a boolean in YAML but must round-trip
+ * through ha-form's text selector — map it to/from the literal string
+ * 'false'. Side benefit: typing "false" into the unit field now sets the
+ * boolean form from the editor. */
+const unitToForm = <T extends Record<string, any>>(config: T): T =>
+  config.unit === false ? { ...config, unit: 'false' } : config;
+
+const unitFromForm = <T extends Record<string, any>>(config: T): T =>
+  config.unit === 'false' ? { ...config, unit: false } : config;
+
 // Our own clipboard slot. We intentionally do NOT use HA's
 // `dashboardCardClipboard` — that one holds Lovelace card configs and is
 // consumed by `<hui-card-picker>`. Pasting an entity sub-config there
@@ -140,7 +150,10 @@ export default class MultipleEntityRowEditor extends LitElement {
   // Entities panel is the entry point — open by default. Tracked as
   // local state so user toggling doesn't fight the template re-render.
   @state() private _entitiesExpanded = true;
-  public hass?: HASS;
+  // Reactive: HA re-assigns hass on every state tick; without a property
+  // decorator the entity pickers inside ha-form would keep the hass they
+  // got on the last config change and go stale.
+  @property({ attribute: false }) public hass?: HASS;
 
   // Per-position stable keys for the entities tab list — lit-html needs
   // these to move DOM nodes on reorder instead of mutating sibling tab
@@ -494,7 +507,7 @@ export default class MultipleEntityRowEditor extends LitElement {
       <div class="child-editor">
         <ha-form
           .hass=${this.hass}
-          .data=${this._config}
+          .data=${this._mainFormData()}
           .schema=${MAIN_TAB_SCHEMA}
           .computeLabel=${this._computeLabel}
           @value-changed=${this._mainValueChanged}
@@ -712,7 +725,7 @@ export default class MultipleEntityRowEditor extends LitElement {
       <div class="child-editor">
         <ha-form
           .hass=${this.hass}
-          .data=${entityConfig}
+          .data=${unitToForm(entityConfig as EntityConfig)}
           .schema=${ADDITIONAL_TAB_SCHEMA}
           .computeLabel=${this._computeLabel}
           @value-changed=${(ev: CustomEvent) =>
@@ -745,15 +758,25 @@ export default class MultipleEntityRowEditor extends LitElement {
 
   // ── Value-changed handlers ──────────────────────────────────────────
 
+  /** Form data for the Main tab: seeds `show_state`'s runtime default (ON)
+   * so the toggle reads correctly for configs that don't set the key, and
+   * maps `unit: false` into its text-field representation. */
+  private _mainFormData(): MultipleEntityRowConfig {
+    return unitToForm({ show_state: true, ...this._config! } as any);
+  }
+
   private _mainValueChanged = (ev: CustomEvent): void => {
     if (!this._config) return;
-    const newConfig = ev.detail.value as MultipleEntityRowConfig;
+    const newConfig: any = unitFromForm({ ...(ev.detail.value as any) });
+    // show_state: true is the seeded runtime default — strip the redundant
+    // key on the way back out so it doesn't pollute the YAML.
+    if (newConfig.show_state === true) delete newConfig.show_state;
     fireEvent(this, 'config-changed', { config: newConfig });
   };
 
   private _additionalValueChanged = (ev: CustomEvent, additionalIndex: number): void => {
     if (!this._config) return;
-    const newEntity = ev.detail.value as EntityConfig;
+    const newEntity = unitFromForm(ev.detail.value as EntityConfig);
     const entities = [...(this._config.entities ?? [])];
     entities[additionalIndex] = newEntity;
     this._updateConfig({ entities });
@@ -883,7 +906,7 @@ export default class MultipleEntityRowEditor extends LitElement {
           ? html`<div class="secondary-sub-form">
               <ha-form
                 .hass=${this.hass}
-                .data=${si as EntityConfig}
+                .data=${unitToForm(si as EntityConfig)}
                 .schema=${ADDITIONAL_TAB_SCHEMA}
                 .computeLabel=${this._computeLabel}
                 @value-changed=${this._secondaryEntityChanged}
@@ -925,7 +948,7 @@ export default class MultipleEntityRowEditor extends LitElement {
   };
 
   private _secondaryEntityChanged = (ev: CustomEvent): void => {
-    this._updateConfig({ secondary_info: ev.detail.value as EntityConfig });
+    this._updateConfig({ secondary_info: unitFromForm(ev.detail.value as EntityConfig) });
   };
 
   // ── Helpers ─────────────────────────────────────────────────────────

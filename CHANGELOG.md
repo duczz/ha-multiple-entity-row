@@ -1,6 +1,25 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 5.2.4
+
+### 🐛 Bug Fixes
+- **String formats (`upper` / `lower` / `capitalize` / `title`) on a missing attribute rendered "UNDEFINED"** — missing values now render as empty text for string transforms (numeric formats already fall back to 0)
+- **Timestamp formats (`relative` / `date` / …) on a missing or null attribute rendered "undefined"** — e.g. `attribute: last_triggered` on an automation that never ran; now renders empty
+- **"Entity not found" warning rendered with empty text on current HA** — the old translation key / call signature no longer exists in recent HA frontends; the message is now built with a robust fallback and always includes the entity id
+- **Rapid taps across two different entities could fire a double-tap on the second entity** — the click counter is now scoped per entity, and action timers resolve against the entity they were started on
+- **Editor: entity pickers went stale during an editing session** — `hass` is now a reactive property, so live state updates propagate into the form controls
+- **Editor: "Show main entity state" toggle displayed OFF for configs that don't set `show_state`** — the runtime default (ON) is now seeded into the form, and the redundant explicit `true` is stripped from the YAML on write
+- **`format: title` broke capitalization on words starting with umlauts or other non-English letters** — `über den berg` came out as `üBer Den Berg` (first letter left lowercase, letter inside the word capitalized instead); now renders `Über Den Berg`
+
+### ✨ Improvements
+- **Editor: `hold_action` / `double_tap_action` now configurable per additional entity** — the runtime always supported them; the editor only offered `tap_action` (upstream #202)
+- **Editor: `unit: false` (hide unit) now round-trips through the unit field** — displays as `false`, and typing `false` sets the boolean form
+- `perform-action` / `assist` added to the action typing (HA 2024.8 renamed `call-service`, upstream #342)
+- Negative durations render with a leading minus (`-1:30`) instead of degrading into per-component negatives
+- Stricter format-name matching — a typo like `format: kilowatt` no longer silently parses as `kilo`
+- Config changes now recompute resolved entities immediately when a hass object is already present (live-preview robustness)
+
 ## 5.2.3
 
 ### 🐛 Bug Fixes

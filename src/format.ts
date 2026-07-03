@@ -35,8 +35,17 @@ export const entityStateDisplay = (
         : (config.unit as string | undefined) || stateObj.attributes.unit_of_measurement;
 
   if (config.format) {
+    // Upstream #225: a missing attribute (e.g. brightness on a light that's
+    // off) is undefined, not a value — render it as empty text for the
+    // string transforms and as 0 for the numeric formats, rather than
+    // letting it flow through as the literal string "undefined".
+    if (rawValue === undefined || rawValue === null) {
+      rawValue = ['upper', 'lower', 'capitalize', 'title'].includes(config.format) ? '' : 0;
+    }
+
     // Upstream #367: string-only format modes — operate on any value, not
-    // just numbers.
+    // just numbers. `title` matches letters after start/whitespace instead
+    // of `\b\w` so non-ASCII words ("über") capitalize correctly.
     switch (config.format) {
       case 'upper':
         return `${String(rawValue).toUpperCase()}${unit ? ` ${unit}` : ''}`;
@@ -47,15 +56,7 @@ export const entityStateDisplay = (
         return `${s.charAt(0).toUpperCase() + s.slice(1)}${unit ? ` ${unit}` : ''}`;
       }
       case 'title':
-        return `${String(rawValue).replace(/\b\w/g, (c) => c.toUpperCase())}${unit ? ` ${unit}` : ''}`;
-    }
-
-    // Upstream #225: a missing attribute (e.g. brightness on a light that's
-    // off) is undefined, not a number — treat it as 0 rather than letting it
-    // flow through to the final template literal as the literal string
-    // "undefined".
-    if (rawValue === undefined || rawValue === null) {
-      rawValue = 0;
+        return `${String(rawValue).replace(/(^|\s)\p{L}/gu, (m) => m.toUpperCase())}${unit ? ` ${unit}` : ''}`;
     }
 
     const numeric = parseFloat(rawValue);
@@ -110,35 +111,33 @@ export const entityStateDisplay = (
         case 'fahrenheit_to_celsius':
           rawValue = formatNumber(((numeric - 32) * 5) / 9, hass, { maximumFractionDigits: 1 });
           break;
-        default:
-          if (config.format.startsWith('precision')) {
-            const precision = parseInt(config.format.slice(-1), 10);
+        default: {
+          // Exact matches only — `startsWith` would misread typos like
+          // `kilowatt` or `precisions` as valid formats.
+          const precisionMatch = config.format.match(/^precision(\d)$/);
+          const scaledMatch = config.format.match(/^(kilo|mega|milli)(\d?)$/);
+          if (precisionMatch) {
+            const precision = parseInt(precisionMatch[1], 10);
             rawValue = formatNumber(numeric, hass, {
               minimumFractionDigits: precision,
               maximumFractionDigits: precision,
             });
-          } else if (
-            config.format.startsWith('kilo') ||
-            config.format.startsWith('mega') ||
-            config.format.startsWith('milli')
-          ) {
+          } else if (scaledMatch) {
             // kilo/mega/milli on their own default to a 2-decimal cap; a
             // trailing digit (kilo3, mega1, milli0, ...) requests an exact
             // precision, same pattern as precision<0-9>.
-            const [divisor, suffix] = config.format.startsWith('kilo')
-              ? [1000, config.format.slice(4)]
-              : config.format.startsWith('mega')
-                ? [1000000, config.format.slice(4)]
-                : [1 / 1000, config.format.slice(5)];
-            const options =
-              suffix === ''
+            const divisor =
+              scaledMatch[1] === 'kilo' ? 1000 : scaledMatch[1] === 'mega' ? 1000000 : 1 / 1000;
+            const precision = scaledMatch[2] === '' ? undefined : parseInt(scaledMatch[2], 10);
+            rawValue = formatNumber(
+              numeric / divisor,
+              hass,
+              precision === undefined
                 ? { maximumFractionDigits: 2 }
-                : (() => {
-                    const precision = parseInt(suffix, 10);
-                    return { minimumFractionDigits: precision, maximumFractionDigits: precision };
-                  })();
-            rawValue = formatNumber(numeric / divisor, hass, options);
+                : { minimumFractionDigits: precision, maximumFractionDigits: precision },
+            );
           }
+        }
       }
     }
     return `${rawValue}${unit ? ` ${unit}` : ''}`;

@@ -33,6 +33,10 @@ export type ActionType =
   | 'more-info'
   | 'toggle'
   | 'call-service'
+  // HA 2024.8 renamed call-service → perform-action; the ui_action selector
+  // emits it, and hass-action handles both. `assist` arrived alongside.
+  | 'perform-action'
+  | 'assist'
   | 'navigate'
   | 'url'
   | 'none';
@@ -42,6 +46,7 @@ export interface ActionConfig {
   entity?: string;
   service?: string;
   service_data?: LooseObject;
+  perform_action?: string;
   data?: LooseObject;
   navigation_path?: string;
   url_path?: string;
