@@ -65,12 +65,21 @@ export const MAIN_TAB_SCHEMA = [
       { name: 'column', selector: { boolean: {} } },
     ],
   },
-  { name: 'hide_unavailable', selector: { boolean: {} } },
+  {
+    type: 'grid',
+    schema: [
+      { name: 'hide_unavailable', selector: { boolean: {} } },
+      { name: 'show_state_first', selector: { boolean: {} } },
+    ],
+  },
   { name: 'state_header', selector: { text: {} } },
   { name: 'image', selector: { text: {} } },
   {
     name: 'format',
-    selector: { select: { mode: 'dropdown', options: FORMAT_OPTIONS } },
+    // custom_value lets a combined pipeline (e.g. "invert, precision3") be
+    // typed directly — those aren't in FORMAT_OPTIONS, same reasoning as
+    // the YAML-only digit-suffix variants above.
+    selector: { select: { mode: 'dropdown', custom_value: true, options: FORMAT_OPTIONS } },
   },
 ];
 
@@ -102,7 +111,10 @@ export const ADDITIONAL_TAB_SCHEMA = [
   { name: 'hide_unavailable', selector: { boolean: {} } },
   {
     name: 'format',
-    selector: { select: { mode: 'dropdown', options: FORMAT_OPTIONS } },
+    // custom_value lets a combined pipeline (e.g. "invert, precision3") be
+    // typed directly — those aren't in FORMAT_OPTIONS, same reasoning as
+    // the YAML-only digit-suffix variants above.
+    selector: { select: { mode: 'dropdown', custom_value: true, options: FORMAT_OPTIONS } },
   },
   // The runtime supports all three actions per additional entity. This
   // schema is also reused for the secondary-info entity form, where hold /
@@ -130,6 +142,7 @@ export const LABELS: Record<string, string> = {
   image: 'Image URL',
   format: 'Format',
   show_state: 'Show main entity state',
+  show_state_first: 'Show main state before entities',
   state_header: 'State header label',
   state_color: 'State color',
   column: 'Column layout',

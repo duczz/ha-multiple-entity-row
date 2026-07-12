@@ -14,6 +14,95 @@ const formatNumber = (
   }
 };
 
+// Numeric formats can be combined comma-separated (`format: invert, precision3`).
+// Only value-transforming numeric segments compose: the raw number threads through
+// every segment and gets locale-formatted exactly once at the end, so a segment
+// never re-parses another segment's already-formatted output (which would break on
+// locale separators like "1,234.5"). Duration, timestamp, and string formats don't
+// participate — they produce display strings, not numbers — so a comma list
+// containing any of those falls through to the normal single-format handling.
+const PIPELINE_SEGMENT =
+  /^(brightness|percent|invert|position|celsius_to_fahrenheit|fahrenheit_to_celsius|kilo\d?|mega\d?|milli\d?|precision\d)$/;
+
+const formatPipeline = (
+  segments: string[],
+  rawValue: any,
+  unit: string | undefined,
+  hass: HASS,
+): string => {
+  let value = parseFloat(rawValue);
+  // Display precision: an explicit precisionN (or kiloN-style digit suffix)
+  // always wins; otherwise the last segment's own default applies (bare
+  // kilo's 2-decimal cap, etc.); with neither, the source value's decimal
+  // digits are preserved, same as the single-format invert/position path.
+  let digits: number | undefined =
+    typeof rawValue === 'string' && rawValue.includes('.') ? rawValue.split('.')[1].length : undefined;
+  let maxDigits: number | undefined;
+  let explicit = false;
+  const defaultCap = (cap: number) => {
+    if (!explicit) {
+      digits = undefined;
+      maxDigits = cap;
+    }
+  };
+
+  for (const segment of segments) {
+    const precisionMatch = segment.match(/^precision(\d)$/);
+    const scaledMatch = segment.match(/^(kilo|mega|milli)(\d?)$/);
+    if (precisionMatch) {
+      digits = parseInt(precisionMatch[1], 10);
+      maxDigits = undefined;
+      explicit = true;
+    } else if (scaledMatch) {
+      const divisor =
+        scaledMatch[1] === 'kilo' ? 1000 : scaledMatch[1] === 'mega' ? 1000000 : 1 / 1000;
+      value = value / divisor;
+      if (scaledMatch[2] !== '') {
+        digits = parseInt(scaledMatch[2], 10);
+        maxDigits = undefined;
+        explicit = true;
+      } else {
+        defaultCap(2);
+      }
+    } else {
+      switch (segment) {
+        case 'brightness':
+          value = Math.round((value / 255) * 100);
+          unit = '%';
+          defaultCap(0);
+          break;
+        case 'percent':
+          value = value * 100;
+          unit = '%';
+          defaultCap(2);
+          break;
+        case 'invert':
+          value = -value;
+          break;
+        case 'position':
+          value = 100 - value;
+          break;
+        case 'celsius_to_fahrenheit':
+          value = value * 1.8 + 32;
+          defaultCap(0);
+          break;
+        case 'fahrenheit_to_celsius':
+          value = ((value - 32) * 5) / 9;
+          defaultCap(1);
+          break;
+      }
+    }
+  }
+
+  const options =
+    digits !== undefined
+      ? { minimumFractionDigits: digits, maximumFractionDigits: digits }
+      : maxDigits !== undefined
+        ? { maximumFractionDigits: maxDigits }
+        : undefined;
+  return `${formatNumber(value, hass, options)}${unit ? ` ${unit}` : ''}`;
+};
+
 export const entityStateDisplay = (
   hass: HASS,
   stateObj: HassEntity | undefined,
@@ -57,6 +146,16 @@ export const entityStateDisplay = (
       }
       case 'title':
         return `${String(rawValue).replace(/(^|\s)\p{L}/gu, (m) => m.toUpperCase())}${unit ? ` ${unit}` : ''}`;
+    }
+
+    if (config.format.includes(',')) {
+      const segments = config.format
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (segments.length > 1 && segments.every((s) => PIPELINE_SEGMENT.test(s))) {
+        return formatPipeline(segments, rawValue, unit, hass);
+      }
     }
 
     const numeric = parseFloat(rawValue);

@@ -18,11 +18,15 @@ A Lovelace **entity-row** that displays multiple entities, attributes, and icons
 
 ---
 
+> **⚠️ Discontinued.** As of July 2026, `benct/lovelace-multiple-entity-row` is actively maintained again and has adopted my fixes, features, and visual editor originally built in this fork (see their [4.7.0 release notes](https://github.com/benct/lovelace-multiple-entity-row/releases), which credit this fork directly). Maintaining two projects with the same feature set doesn't make sense — `5.2.5` is the final release here. Please migrate: [`benct/lovelace-multiple-entity-row`](https://github.com/benct/lovelace-multiple-entity-row). Hopefully, this will also mean faster and more consistent maintenance in the future than has been the case so far — it's nice to see that it's active again.
+
+---
+
 <a id="about-this-fork"></a>
 ## 🛠️ About this fork
 
-This project is a modernised complete rewrite of the 2020-era `benct/lovelace-multiple-entity-row`, rebuilt to support the latest Home Assistant frontend stack (HA 2024.4+). All existing 4.x YAML configs continue to work unchanged, and a **built-in visual editor** (accessible from the HA card picker) means most settings no longer require touching YAML at all.
-For all new features, bug fixes, and improvements, please check the [CHANGELOG.md](CHANGELOG.md).
+This project was a modernised complete rewrite of the 2020-era `benct/lovelace-multiple-entity-row`, rebuilt to support the latest Home Assistant frontend stack (HA 2024.4+). All existing 4.x YAML configs continued to work unchanged, and a **built-in visual editor** (accessible from the HA card picker) meant most settings no longer required touching YAML at all.
+For the full history of features, bug fixes, and improvements, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -105,6 +109,7 @@ entities:
 | `image`             | `string`        | —                                   | Show an image instead of icon                     |
 | `toggle`            | `bool`          | `false`                             | Display a toggle (if supported) instead of state  |
 | `show_state`        | `bool`          | `true`                              | Set to `false` to hide the main entity            |
+| `show_state_first`  | `bool`          | `false`                             | Render the main state before the entities instead of after — new in 5.2.5 |
 | `state_header`      | `string`        | —                                   | Header text above the main entity state           |
 | `state_color`       | `bool`          | `false`                             | Colored icon when the entity is active            |
 | `column`            | `bool`          | `false`                             | Show entities in a column instead of a row        |
@@ -216,6 +221,16 @@ The `format` option supports:
 | `title`                 | `string`    | Capitalize Each Word ("Title Case") — new in 5.2.0               |
 
 `kilo`/`mega`/`milli`/`invert`/`position` only scale or transform the number — they do **not** change the displayed unit. If you want the unit label to match (e.g. `W` → `kW`), set `unit:` explicitly alongside the format.
+
+**Combining formats** *(new in 5.2.5)* — the number-transforming formats above (`brightness`, `percent`, `invert`, `position`, `kilo`/`mega`/`milli`, `precision<0-9>`, the temperature conversions) can be combined comma-separated. The value flows through each in order and is locale-formatted once at the end:
+
+```yaml
+format: invert, precision3   # -18.123
+format: kilo, precision1     # 1500 -> 1.5
+format: invert, kilo3        # 1500 -> -1.500
+```
+
+An explicit `precision<N>` (or a `kiloN`/`megaN`/`milliN` digit suffix) wins wherever it appears in the chain; otherwise the last segment's own default applies. Durations, timestamps, and the string transforms (`upper`/`lower`/…) cannot be combined — mixing one into a comma list falls back to plain single-format handling. In the visual editor, type the combined format directly into the Format dropdown (it accepts free text, not just the listed options).
 
 ---
 

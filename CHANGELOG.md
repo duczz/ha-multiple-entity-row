@@ -1,7 +1,29 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 5.2.5 — final release
+
+> **This is the final release of this fork.** `benct/lovelace-multiple-entity-row` is actively maintained again and has adopted my fixes, features, and visual editor originally built here. Maintaining two projects with the same feature set doesn't make sense — please migrate: [`benct/lovelace-multiple-entity-row`](https://github.com/benct/lovelace-multiple-entity-row). Your existing YAML configs will continue to work unchanged there. Hopefully, this will also mean faster and more consistent maintenance in the future than has been the case so far — it's nice to see that it's active again.
+
+### ✨ New
+- **Combined numeric formats** — `format: invert, precision3` chains any of the number-transforming formats (`brightness`, `percent`, `invert`, `position`, `kilo`/`mega`/`milli`, `precision<0-9>`, temperature conversions) in sequence, formatted once at the end. Selectable via free text in the editor's Format dropdown.
+- **`show_state_first`** — renders the main entity's state before the additional entities instead of after.
+
+### 🐛 Bug Fixes
+- **Long-pressing an entity could leave a stray ripple animation stuck on screen:** `hui-generic-entity-row` attaches its own hold/tap detection to its row wrapper regardless of our `catchInteraction` setting, listening for `touchstart`/`mousedown` (which our slot didn't block). A long-press on any entity silently started the row's own hold-timer; since its completion events (`click`/`touchend`) were blocked, its shared ripple indicator never reset. Both events are now stopped at the source.
+- **Editor: typing in the Custom CSS field could scramble or lose what you just typed** — `ha-code-editor` fires a change event on every keystroke, and re-binding its value from the parsed/re-serialized config on each render fought the user's typing (e.g. `color:red` got rewritten to `color: red` mid-keystroke, replacing the whole document and jumping the cursor). The editor now keeps a raw-text draft, same pattern already used for the state-icon rows.
+- **Editor: state-icon rows and Custom CSS drafts could resurface under the wrong entity** after reordering, cutting, or deleting an additional entity — these were tracked by tab position, not by entity. Drafts now move and get cleaned up together with their entity.
+- **Editor: "Copy main as template" silently dropped `hold_action`, `double_tap_action`, `hide_if`, and `default`** — all valid on additional entities, none were copied over from Main.
+
 ## 5.2.4
+
+### ✨ Improvements
+- **Editor: `hold_action` / `double_tap_action` now configurable per additional entity** — the runtime always supported them; the editor only offered `tap_action` (upstream #202)
+- **Editor: `unit: false` (hide unit) now round-trips through the unit field** — displays as `false`, and typing `false` sets the boolean form
+- `perform-action` / `assist` added to the action typing (HA 2024.8 renamed `call-service`, upstream #342)
+- Negative durations render with a leading minus (`-1:30`) instead of degrading into per-component negatives
+- Stricter format-name matching — a typo like `format: kilowatt` no longer silently parses as `kilo`
+- Config changes now recompute resolved entities immediately when a hass object is already present (live-preview robustness)
 
 ### 🐛 Bug Fixes
 - **String formats (`upper` / `lower` / `capitalize` / `title`) on a missing attribute rendered "UNDEFINED"** — missing values now render as empty text for string transforms (numeric formats already fall back to 0)
@@ -11,14 +33,6 @@ All notable changes to this project will be documented in this file.
 - **Editor: entity pickers went stale during an editing session** — `hass` is now a reactive property, so live state updates propagate into the form controls
 - **Editor: "Show main entity state" toggle displayed OFF for configs that don't set `show_state`** — the runtime default (ON) is now seeded into the form, and the redundant explicit `true` is stripped from the YAML on write
 - **`format: title` broke capitalization on words starting with umlauts or other non-English letters** — `über den berg` came out as `üBer Den Berg` (first letter left lowercase, letter inside the word capitalized instead); now renders `Über Den Berg`
-
-### ✨ Improvements
-- **Editor: `hold_action` / `double_tap_action` now configurable per additional entity** — the runtime always supported them; the editor only offered `tap_action` (upstream #202)
-- **Editor: `unit: false` (hide unit) now round-trips through the unit field** — displays as `false`, and typing `false` sets the boolean form
-- `perform-action` / `assist` added to the action typing (HA 2024.8 renamed `call-service`, upstream #342)
-- Negative durations render with a leading minus (`-1:30`) instead of degrading into per-component negatives
-- Stricter format-name matching — a typo like `format: kilowatt` no longer silently parses as `kilo`
-- Config changes now recompute resolved entities immediately when a hass object is already present (live-preview robustness)
 
 ## 5.2.3
 

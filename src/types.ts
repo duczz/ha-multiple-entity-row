@@ -90,6 +90,9 @@ export interface MultipleEntityRowConfig extends EntityFormatConfig {
   type: 'custom:multiple-entity-row' | string;
   entity: string;
   show_state?: boolean;
+  /** Render the main entity's state before the additional entities instead
+   * of after. */
+  show_state_first?: boolean;
   state_header?: string;
   image?: string;
   column?: boolean;

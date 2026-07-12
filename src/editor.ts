@@ -137,8 +137,12 @@ const MAIN_COPYABLE_FIELDS: (keyof MultipleEntityRowConfig)[] = [
   'state_color',
   'toggle',
   'hide_unavailable',
+  'hide_if',
+  'default',
   'format',
   'tap_action',
+  'hold_action',
+  'double_tap_action',
   'styles',
 ];
 
@@ -171,6 +175,15 @@ export default class MultipleEntityRowEditor extends LitElement {
   @state() private _stateIconRowsAdditional: Map<number, [string, string][]> =
     new Map();
 
+  // Raw draft text for the Custom-CSS code editor, same match-skip idea as
+  // the state-icon rows above: ha-code-editor fires value-changed on every
+  // keystroke, and without a draft, re-binding `.value` from the
+  // parse→stringify-normalized config on each render fights the user's
+  // typing (a plain `color:red` gets rewritten to `color: red` mid-keystroke,
+  // CodeMirror replaces the whole document, and the cursor jumps).
+  @state() private _stylesDraftMain?: string;
+  @state() private _stylesDraftAdditional: Map<number, string> = new Map();
+
   public setConfig(config: MultipleEntityRowConfig): void {
     this._config = config;
     const maxAdditionalTab = config.entities?.length ?? 0;
@@ -199,6 +212,43 @@ export default class MultipleEntityRowEditor extends LitElement {
       }
     });
     this._stateIconRowsAdditional = next;
+
+    // Same match-skip sync for the Custom-CSS draft text.
+    if (
+      this._stylesDraftMain === undefined ||
+      !this._stylesDraftMatches(this._stylesDraftMain, config.styles)
+    ) {
+      this._stylesDraftMain = stringifyStyles(config.styles);
+    }
+    const nextStyles = new Map<number, string>();
+    config.entities?.forEach((e, i) => {
+      const target =
+        typeof e === 'object' && e ? ((e as any).styles as Record<string, string> | undefined) : undefined;
+      const existing = this._stylesDraftAdditional.get(i);
+      if (existing !== undefined && this._stylesDraftMatches(existing, target)) {
+        nextStyles.set(i, existing);
+      } else if (target) {
+        nextStyles.set(i, stringifyStyles(target));
+      }
+    });
+    this._stylesDraftAdditional = nextStyles;
+  }
+
+  /** True when parsing `text` yields the same key/value pairs as `target` —
+   * same match-skip guard as `_stateIconRowsMatch`, for the styles draft. */
+  private _stylesDraftMatches(
+    text: string,
+    target: Record<string, string> | undefined,
+  ): boolean {
+    const parsed = parseStylesText(text);
+    const tgt = target ?? {};
+    const pk = Object.keys(parsed);
+    const tk = Object.keys(tgt);
+    if (pk.length !== tk.length) return false;
+    for (const k of pk) {
+      if (parsed[k] !== tgt[k]) return false;
+    }
+    return true;
   }
 
   /** True when the filtered representation of `rows` (drop empty
@@ -518,65 +568,62 @@ export default class MultipleEntityRowEditor extends LitElement {
         ${this._renderStateIconRows('main')}
         <div class="section-label">Custom CSS</div>
         ${this._renderKeyMapBlock(
-          this._config?.styles,
-          (ev) => this._mainKeyMapChanged(ev, 'styles'),
+          this._stylesDraftMain ?? '',
+          (ev) => this._mainStylesChanged(ev),
         )}
       </div>
     `;
   }
 
   private _renderKeyMapBlock(
-    value: unknown,
+    text: string,
     handler: (ev: CustomEvent) => void,
   ): TemplateResult {
-    // autocomplete-icons enables mdi:* suggestions (essential for the
-    // state_icon block); autocomplete-entities is included for parity with
-    // stack-in-card's pattern — both attributes are harmless when not
-    // triggered (e.g. inside the styles block where neither applies).
     return html`
       <ha-code-editor
         mode="yaml"
         autocomplete-entities
         autocomplete-icons
         .hass=${this.hass}
-        .value=${stringifyStyles(value)}
+        .value=${text}
         @value-changed=${handler}
       ></ha-code-editor>
     `;
   }
 
-  /** Generic key:value-map mutator for top-level Main fields (currently
-   * `styles` and `state_icon`). Empty maps are stripped from the config. */
-  private _mainKeyMapChanged = (
-    ev: CustomEvent,
-    field: 'styles' | 'state_icon',
-  ): void => {
+  /** Custom-CSS mutator for the top-level `styles` field. Stores the raw
+   * typed text as the draft immediately (so the editor shows exactly what
+   * was typed, not a re-normalized version), then propagates the parsed
+   * form. Empty maps are stripped from the config. */
+  private _mainStylesChanged = (ev: CustomEvent): void => {
     if (!this._config) return;
-    const parsed = parseStylesText((ev.detail as any).value as string);
+    const text = (ev.detail as any).value as string;
+    this._stylesDraftMain = text;
+    const parsed = parseStylesText(text);
     const next: any = { ...this._config };
     if (Object.keys(parsed).length > 0) {
-      next[field] = parsed;
+      next.styles = parsed;
     } else {
-      delete next[field];
+      delete next.styles;
     }
     fireEvent(this, 'config-changed', { config: next });
   };
 
-  /** Generic key:value-map mutator for an additional-entity's field. */
-  private _additionalKeyMapChanged = (
-    ev: CustomEvent,
-    index: number,
-    field: 'styles' | 'state_icon',
-  ): void => {
+  /** Custom-CSS mutator for an additional entity's `styles` field. */
+  private _additionalStylesChanged = (ev: CustomEvent, index: number): void => {
     if (!this._config) return;
-    const parsed = parseStylesText((ev.detail as any).value as string);
+    const text = (ev.detail as any).value as string;
+    const nextDraft = new Map(this._stylesDraftAdditional);
+    nextDraft.set(index, text);
+    this._stylesDraftAdditional = nextDraft;
+    const parsed = parseStylesText(text);
     const entities = [...(this._config.entities ?? [])];
     const raw = entities[index];
     const conf: any = typeof raw === 'string' ? { entity: raw } : { ...raw };
     if (Object.keys(parsed).length > 0) {
-      conf[field] = parsed;
+      conf.styles = parsed;
     } else {
-      delete conf[field];
+      delete conf.styles;
     }
     entities[index] = conf;
     this._updateConfig({ entities });
@@ -735,8 +782,8 @@ export default class MultipleEntityRowEditor extends LitElement {
         ${this._renderStateIconRows(additionalIndex)}
         <div class="section-label">Custom CSS</div>
         ${this._renderKeyMapBlock(
-          (entityConfig as any).styles,
-          (ev: CustomEvent) => this._additionalKeyMapChanged(ev, additionalIndex, 'styles'),
+          this._stylesDraftAdditional.get(additionalIndex) ?? '',
+          (ev: CustomEvent) => this._additionalStylesChanged(ev, additionalIndex),
         )}
       </div>
     `;
@@ -784,6 +831,34 @@ export default class MultipleEntityRowEditor extends LitElement {
 
   // ── Mutating handlers (Main is protected) ───────────────────────────
 
+  /** Remove `index` from an index-keyed draft map, shifting every later
+   * index down by one — mirrors an `entities.splice(index, 1)`. Without
+   * this, drafts (state-icon rows, styles text) stay pinned to their old
+   * tab position and can resurface under a different entity after a
+   * delete, since the position — not the entity — used to own the draft. */
+  private _removeDraftIndex<T>(map: Map<number, T>, index: number): Map<number, T> {
+    const next = new Map<number, T>();
+    for (const [k, v] of map) {
+      if (k < index) next.set(k, v);
+      else if (k > index) next.set(k - 1, v);
+      // k === index is dropped — that entity is gone.
+    }
+    return next;
+  }
+
+  /** Swap the draft entries at two indices — mirrors the entities-array
+   * swap in `_moveAdditional`. */
+  private _swapDraftIndex<T>(map: Map<number, T>, a: number, b: number): Map<number, T> {
+    const next = new Map(map);
+    const va = next.get(a);
+    const vb = next.get(b);
+    if (vb !== undefined) next.set(a, vb);
+    else next.delete(a);
+    if (va !== undefined) next.set(b, va);
+    else next.delete(b);
+    return next;
+  }
+
   private _addEntity = (): void => {
     if (!this._config) return;
     const entities = [...(this._config.entities ?? []), {} as EntityConfig];
@@ -801,6 +876,14 @@ export default class MultipleEntityRowEditor extends LitElement {
       this._selectedTab = entities.length;
     }
     this._keys.clear();
+    this._stateIconRowsAdditional = this._removeDraftIndex(
+      this._stateIconRowsAdditional,
+      additionalIndex,
+    );
+    this._stylesDraftAdditional = this._removeDraftIndex(
+      this._stylesDraftAdditional,
+      additionalIndex,
+    );
     this._updateConfig({ entities: entities.length ? entities : undefined });
   };
 
@@ -815,6 +898,16 @@ export default class MultipleEntityRowEditor extends LitElement {
     ];
     this._selectedTab = target + 1; // tab index = additional + 1
     this._keys.clear();
+    this._stateIconRowsAdditional = this._swapDraftIndex(
+      this._stateIconRowsAdditional,
+      additionalIndex,
+      target,
+    );
+    this._stylesDraftAdditional = this._swapDraftIndex(
+      this._stylesDraftAdditional,
+      additionalIndex,
+      target,
+    );
     this._updateConfig({ entities });
   };
 

@@ -38,6 +38,18 @@ interface ActionBundle {
 const HOLD_MS = 500;
 const DBL_MS = 250;
 
+// hui-generic-entity-row attaches its own action-handler directive to its
+// row wrapper regardless of `catchInteraction`, listening for touchstart /
+// mousedown (not pointerdown) to start ITS OWN hold-timer. Our slotted
+// content only stops click/touchend/touchcancel/keydown/action at the slot
+// boundary — touchstart/mousedown still bubble through untouched, so a
+// long-press on any of our entities silently starts the row's hold timer
+// too. Its `end` handler never runs (click/touchend are blocked), so the
+// action itself can't double-fire, but the directive's shared ripple
+// element never resets and is left stuck on-screen. Stop both at the
+// source so the row's action-handler never sees our gestures at all.
+const stopPropagation = (e: Event): void => e.stopPropagation();
+
 export default class MultipleEntityRow extends LitElement {
   static styles = styles;
 
@@ -172,8 +184,13 @@ export default class MultipleEntityRow extends LitElement {
       .catchInteraction=${false}
     >
       <div class=${this._config.column ? 'entities-column' : 'entities-row'}>
-        ${this._entities.map((entity) => this._renderEntity(entity.stateObj, entity))}
-        ${this._renderMainEntity()}
+        ${this._config.show_state_first
+          ? html`${this._renderMainEntity()}${this._entities.map((entity) =>
+              this._renderEntity(entity.stateObj, entity),
+            )}`
+          : html`${this._entities.map((entity) =>
+              this._renderEntity(entity.stateObj, entity),
+            )}${this._renderMainEntity()}`}
       </div>
     </hui-generic-entity-row>`;
   }
@@ -215,6 +232,8 @@ export default class MultipleEntityRow extends LitElement {
     return html`<div
       class="state entity"
       style=${entityStyles(this._config)}
+      @touchstart=${stopPropagation}
+      @mousedown=${stopPropagation}
       @pointerdown=${this._onPointerDown(actions)}
       @pointerup=${this._onPointerUp}
       @pointercancel=${this._onPointerCancel}
@@ -253,6 +272,8 @@ export default class MultipleEntityRow extends LitElement {
     return html`<div
       class="entity"
       style=${entityStyles(config)}
+      @touchstart=${stopPropagation}
+      @mousedown=${stopPropagation}
       @pointerdown=${this._onPointerDown(actions)}
       @pointerup=${this._onPointerUp}
       @pointercancel=${this._onPointerCancel}
